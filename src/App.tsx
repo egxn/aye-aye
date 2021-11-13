@@ -4,6 +4,7 @@ import Webcam from 'react-webcam';
 import './App.css';
 
 import '@tensorflow/tfjs-backend-webgl';
+// import '@tensorflow/tfjs-backend-cpu';
 
 function App() {
   const [tracks, setTracks] = useState<any[]>([]);
@@ -52,11 +53,29 @@ function App() {
 
   function draw(points: any) {
     if (canvasRef.current) {
-      const {innerWidth, innerHeight} = window;
-      points.forEach((point: any) => {
-        const [x, y] = point;
-        setTracks([...tracks, [ ((x * 100) / camWidth) * (innerWidth / 100), ((y * 100) / camHeight) * (innerHeight / 100), 2, 1]]);
-      });  
+      const [, , middlePoint] = points;
+      const [x, y] = middlePoint;
+      const xCam = (x * 100) / camWidth; // * 1.2
+      const yCam = (y * 100) / camHeight;
+
+
+      const newPoint = (tracks: number[][], xCam: number, yCam: number) => {
+        const margin = 0;
+        let lastX = margin;
+        let lastY = margin;
+        if (tracks.length > 0) {
+          [lastX, lastY] = tracks.reverse()[0];
+        }
+
+        const newX = ((xCam) - lastX) * (window.innerWidth / 100);
+        const newY = ((yCam) - lastY) * (window.innerHeight / 100);
+        // Max distance between points less than 100 
+        console.log(newX, newY);
+
+        return [newX, newY, 2, 2];
+      }
+
+      setTracks(tracks => [...tracks, newPoint(tracks ,xCam, yCam)]);
     }
   }
 
