@@ -1,23 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
-import * as faceLandmarksDetection from '@tensorflow-models/face-landmarks-detection';
 import Webcam from 'react-webcam';
 import './App.css';
 
+import '@mediapipe/face_mesh';
+import '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-webgl';
-// import '@tensorflow/tfjs-backend-cpu';
+import * as faceLandmarksDetection from '@tensorflow-models/face-landmarks-detection';
 
 function App() {
   const [tracks, setTracks] = useState<any[]>([]);
   const canvasRef = useRef(null);
   const webcamRef = useRef<Webcam>(null);
-  const [model, setModel] = useState <any>(null);
+  const [detector, setDetector] = useState <any>(null);
   const camWidth = 720;
   const camHeight = 720;
 
   useEffect(() => {
     async function loadModel() {
-      const model = await faceLandmarksDetection.load(faceLandmarksDetection.SupportedPackages.mediapipeFacemesh);
-      setModel(model);
+      const model = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
+      const detectorConfig: faceLandmarksDetection.MediaPipeFaceMeshMediaPipeModelConfig = {
+        refineLandmarks: false,
+        runtime: 'mediapipe', // or 'tfjs'
+        solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh',
+      }
+      const detector = await faceLandmarksDetection.createDetector(model, detectorConfig);
+
+      setDetector(detector);
     }
 
     loadModel();
@@ -69,7 +77,6 @@ function App() {
 
         const newX = ((xCam) - lastX) * (window.innerWidth / 100);
         const newY = ((yCam) - lastY) * (window.innerHeight / 100);
-        // Max distance between points less than 100 
         console.log(newX, newY);
 
         return [newX, newY, 2, 2];
@@ -79,29 +86,32 @@ function App() {
     }
   }
 
-  async function detect() {
-    if (webcamRef.current) {
-      const webcamCurrent = webcamRef.current as any;
-      if (webcamCurrent.video.readyState === 4) {
-        const video = webcamRef.current.video;
-        const predictions = await model.estimateFaces({ input: video });        
-        if (predictions.length > 0) {
-          const { leftEyeIris } = predictions[0].annotations;
-          draw(leftEyeIris);
+  useEffect(() => {
+    async function detect() {
+      if (webcamRef.current) {
+        const webcamCurrent = webcamRef.current as any;
+        if (webcamCurrent.video.readyState === 4) {
+          const video = webcamRef.current.video;
+          const predictions = await detector.estimateFaces(video, {flipHorizontal: false});
+          if (predictions.length > 0) {
+            console.log(predictions[0]);
+            debugger;
+            // const { leftEyeIris } = predictions[0].annotations;
+            // draw(leftEyeIris);
+          }
         }
       }
     }
-  }
-
-  useEffect(() => {
+  
     const interval = setInterval(() => {
-      if (model && webcamRef) {
+      if (detector && webcamRef) {
+        console.log("try to detect")
         detect();
       }
     }, 60);
 
     return () => clearInterval(interval);
-  }, [model]);
+  }, [detector]);
 
   return (
     <div className="App">
