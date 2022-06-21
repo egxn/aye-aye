@@ -11,7 +11,7 @@ function App() {
   const IRIS = "leftIris";
   const EYE = "leftEye";
   const [eyeBounds, setEyeBounds] = useState<{left: number, right: number, top: number, bottom: number} | null>(null);
-  const [tracks, setTracks] = useState<{x: number, y:number} | null>(null);
+  const [point, setPoint] = useState<{x: number, y:number} | null>(null);
   const canvasRef = useRef(null);
   const webcamRef = useRef<Webcam>(null);
   const [detector, setDetector] = useState <faceLandmarksDetection.FaceLandmarksDetector | null>(null);
@@ -52,14 +52,15 @@ function App() {
     const canvas = canvasRef.current as any;
     const ctx = canvas.getContext('2d');
 
-    if (eyeBounds && tracks?.x && tracks?.y) {
-      const {x, y} = tracks;
+    if (eyeBounds && point) {
+      const {x, y} = point;
       const {left, right, top, bottom} = eyeBounds;
       const pointX = ((((x-left) * 100) / (right - left)) / 100) * canvas.width;
       const pointY = ((((y-top)  * 100) / (bottom - top)) / 100) * canvas.height;
-      ctx.fillRect(pointX, pointY ,2,2);
+      // @TODO pointY
+      ctx.fillRect(pointX, camHeight / 2 ,2,2);
     }
-  }, [eyeBounds, tracks])
+  }, [eyeBounds, point])
 
   const videoConstraints = {
     facingMode: "user",
@@ -67,10 +68,15 @@ function App() {
     width: camHeight,
   };
 
-  function draw(point: { x: number, y: number }, bounds: { left: number, right: number, top: number, bottom: number}) {
+  function draw(
+    newPoint: { x: number, y: number },
+    bounds: { left: number, right: number, top: number, bottom: number},
+    point: { x: number, y: number} | null) {
     if (canvasRef.current) {
-      setTracks(point);
-      setEyeBounds(bounds);
+      setPoint(newPoint);
+      if (!point || (newPoint?.x > point?.x + 10) ) {
+        setEyeBounds(bounds);
+      }
     }
   }
 
@@ -99,7 +105,7 @@ function App() {
             .reduce<{ x: number, y:number, i: number }>
               ((acc, { x, y }) => ({ x: acc.x + x, y: acc.y + y, i: acc.i + 1 }), { x: 0, y: 0, i: 0 });
 
-          draw({ x: x / i, y: y / i }, {left, right, top, bottom});
+          draw({ x: x / i, y: y / i }, {left, right, top, bottom}, point);
         }
       }
     }
@@ -111,7 +117,7 @@ function App() {
     }, 60);
 
     return () => clearInterval(interval);
-  }, [detector, eyeBounds]);
+  }, [detector, eyeBounds, point]);
 
   return (
     <div className="App">
